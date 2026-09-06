@@ -51,18 +51,30 @@ func (p *PostgresRepo) Create(ctx context.Context, article model.Article) error 
 	return err
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, slug string) error {
+func (p *PostgresRepo) Delete(ctx context.Context, slug, AuthorTokenHash string) error {
 	query := `
-		DELETE FROM articles WHERE slug = $1
+		DELETE FROM articles WHERE slug = $1 AND authortokenhash = $2 
 	`
 
-	_, err := p.db.ExecContext(
+	res, err := p.db.ExecContext(
 		ctx,
 		query,
 		slug,
+		AuthorTokenHash,
 	)
+	if err != nil {
+		return err
+	}
 
-	return err
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return customerr.ErrNotFoundOrForbidden
+	}
+
+	return nil
 }
 
 func (p *PostgresRepo) Get(ctx context.Context, slug string) (model.Article, error) {

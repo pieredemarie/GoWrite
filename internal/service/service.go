@@ -21,7 +21,7 @@ import (
 type ArticleRepository interface {
 	Create(ctx context.Context, article model.Article) error
 	Get(ctx context.Context, slug string) (model.Article, error)
-	Delete(ctx context.Context, slug string) error
+	Delete(ctx context.Context, slug, AuthorTokenHash string) error
 	Update(ctx context.Context, article model.Article) error
 }
 
@@ -110,13 +110,34 @@ func (s *articleService) CreateArticle(ctx context.Context, title, contentMD str
 }
 
 func (s *articleService) GetArticleBySlug(ctx context.Context, slug string) (model.Article, error) {
-
+	return s.repo.Get(ctx, slug)
 }
 
 func (s *articleService) UpdateArticle(ctx context.Context, slug, token, title, contentMD string) error {
+	if title == "" {
+		return customerr.ErrTitleEmpty
+	}
+	if len(strings.Fields(contentMD)) > 1000 {
+		return customerr.ErrMaxLimitExceeded
+	}
 
+	html, err := RenderMarkdown(contentMD)
+	if err != nil {
+		return err
+	}
+
+	article := model.Article{
+		Slug:            slug,
+		Title:           title,
+		ContentMD:       contentMD,
+		ContentHTML:     html,
+		AuthorTokenHash: HashToken(token),
+		UpdatedAt:       time.Now(),
+	}
+
+	return s.repo.Update(ctx, article)
 }
 
 func (s *articleService) DeleteArticle(ctx context.Context, slug, token string) error {
-
+	return s.repo.Delete(ctx, slug, HashToken(token))
 }
