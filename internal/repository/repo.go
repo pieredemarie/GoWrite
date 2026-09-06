@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"gowrite/internal/customerr"
 	"gowrite/internal/model"
 	"time"
 )
@@ -33,13 +34,12 @@ func NewPostgresRepo(dsn string) (*PostgresRepo, error) {
 
 func (p *PostgresRepo) Create(ctx context.Context, article model.Article) error {
 	query := `
-		INSERT INTO articles (id,slug, title, contentmd, contenthtml, 		  authortokenhash, created_at, updated_at)
+		INSERT INTO articles (slug, title, contentmd, contenthtml, 		  authortokenhash, created_at, updated_at)
 		VALUES ($1, $2,$3,$4,$5, $6,$7) `
 
 	_, err := p.db.ExecContext(
 		ctx,
 		query,
-		article.ID,
 		article.Slug,
 		article.Title,
 		article.ContentMD,
@@ -68,12 +68,13 @@ func (p *PostgresRepo) Delete(ctx context.Context, slug string) error {
 func (p *PostgresRepo) Get(ctx context.Context, slug string) (model.Article, error) {
 	query := `
 		SELECT id, slug, title, contentmd, contenthtml, authortokenhash, created_at, updated_at
-		WHERE id = $1
+		FROM articles
+		WHERE slug = $1
 	`
 
 	var article model.Article
 
-	err := p.db.QueryRowContext(ctx, query).Scan(
+	err := p.db.QueryRowContext(ctx, query, slug).Scan(
 		&article.ID,
 		&article.Slug,
 		&article.Title,
@@ -94,10 +95,27 @@ func (p *PostgresRepo) Get(ctx context.Context, slug string) (model.Article, err
 	return article, nil
 }
 
-func (p *PostgresRepo) Update(ctx context.Context) error {
-	// TODO: decide how to update article
-	// using the whole struct (about 24 bytes) or just contentHTML (or md?)
+func (p *PostgresRepo) Update(ctx context.Context, article model.Article) error {
+	query := `
+		UPDATE articles
+		SET title = $1, contentmd = $2, contenthtml = $3, updated_at = $4
+		WHERE slug = $5 AND authortokenhash = $6 
+	`
+	res, err := p.db.ExecContext(ctx, query,
+		article.Title, article.ContentMD, article.ContentHTML,
+		article.UpdatedAt, article.Slug, article.AuthorTokenHash,
+	)
+	if err != nil {
+		return err
+	}
 
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return customerr.ErrNotFoundOrForbidden
+	}
 	return nil
 }
 
