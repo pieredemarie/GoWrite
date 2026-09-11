@@ -8,6 +8,8 @@ import (
 	"gowrite/internal/customerr"
 	"gowrite/internal/model"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type PostgresRepo struct {
@@ -99,14 +101,13 @@ func (p *PostgresRepo) Get(ctx context.Context, slug string) (model.Article, err
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return model.Article{}, fmt.Errorf("article with slug %s not found %w", slug, err)
+			return model.Article{}, customerr.ErrNotFoundOrForbidden
 		}
 		return model.Article{}, err
 	}
 
 	return article, nil
 }
-
 func (p *PostgresRepo) Update(ctx context.Context, article model.Article) error {
 	query := `
 		UPDATE articles

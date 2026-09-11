@@ -1,20 +1,17 @@
 FROM golang:alpine AS builder
 
-WORKDIR /app 
+WORKDIR /app
 
-COPY go.mod go.sum ./ 
-
-RUN go mod download 
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o ./cmd/main.go 
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/gowrite ./cmd
 
-FROM alpine:latest 
+FROM alpine:latest
 
-WORKDIR /app 
+WORKDIR /app
 
-COPY --from=builder /app/main .
+COPY --from=builder /app/gowrite .
 
-CMD ["./main"]
-
-
+CMD ["./gowrite"]
